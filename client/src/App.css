@@ -298,12 +298,21 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .model-formula { background: #f8f9fa; padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; }
 .model-formula code { font-size: 13px; color: #555; }
 
-.coeff-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+.calib-section { margin-bottom: 12px; }
+.calib-section h4 { font-size: 12px; color: #888; margin-bottom: 6px; }
+.calib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 6px; }
+.calib-item { background: #eaf2f8; border-radius: 6px; padding: 6px 10px; display: flex; flex-direction: column; }
+.calib-item span { font-size: 10px; color: #888; }
+.calib-item strong { font-size: 13px; color: #1a5276; }
+
+.coeff-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
 .coeff-card { background: #f8f9fa; border-radius: 8px; padding: 10px 14px; }
 .coeff-label { font-size: 11px; color: #888; margin-bottom: 2px; }
 .coeff-value { font-size: 16px; font-weight: 700; color: #333; }
 .coeff-value small { font-size: 11px; font-weight: 400; color: #888; }
+.coeff-source { font-size: 10px; color: #2980b9; margin-top: 2px; }
 .coeff-uncertainty { font-size: 11px; color: #e67e22; }
+.model-ref-note { margin-top: 10px; font-size: 11px; color: #aaa; text-align: center; }
 
 .chart-subtitle { font-size: 11px; color: #aaa; margin-top: -8px; margin-bottom: 10px; }
 .custom-temp { display: flex; gap: 6px; }

@@ -53,7 +53,8 @@ export default function PredictionPanel() {
       const point = { temp: t };
       sample.forEach((c, i) => {
         const hdd = Math.max(0, 18 - t);
-        point[`c${i}`] = Number((c.dailyGas + 0.007 * hdd * c.heatingArea).toFixed(0));
+        const coeff = data?.model?.coefficients?.find(x => x.key === 'gas')?.value || 0.0041;
+        point[`c${i}`] = Number((c.dailyGas + coeff * hdd * c.heatingArea).toFixed(0));
       });
       return point;
     });
@@ -148,18 +149,37 @@ export default function PredictionPanel() {
             <span className="model-ref">{model.reference}</span>
           </div>
           <div className="model-desc">{model.description}</div>
+
+          <div className="calib-section">
+            <h4>标定依据</h4>
+            <div className="calib-grid">
+              <div className="calib-item"><span>采暖季</span><strong>{model.heatingSeason}</strong></div>
+              <div className="calib-item"><span>采暖天数</span><strong>{model.calibration.heatingDays} 天</strong></div>
+              <div className="calib-item"><span>热负荷范围</span><strong>{model.calibration.heatLoadRange}</strong></div>
+              <div className="calib-item"><span>季节总 HDD</span><strong>{model.calibration.seasonTotalHDD}</strong></div>
+              <div className="calib-item"><span>日均 HDD</span><strong>{model.calibration.avgDailyHDD}</strong></div>
+              <div className="calib-item"><span>热值换算</span><strong>{model.calibration.heatToGas}</strong></div>
+            </div>
+          </div>
+
           <div className="model-formula">
             <code>HDD = max(0, {model.baseTemperature} - T)</code><br />
-            <code>预测值 = 基准负荷 + 供暖系数 × HDD × 供暖面积</code>
+            <code>预测值 = 基准负荷 + 系数 × HDD × 供暖面积</code>
           </div>
+
           <div className="coeff-grid">
             {model.coefficients.map(coeff => (
               <div key={coeff.key} className="coeff-card">
                 <div className="coeff-label">{coeff.label}</div>
                 <div className="coeff-value">{coeff.value} <small>{coeff.unit}</small></div>
+                <div className="coeff-source">{coeff.source}</div>
                 <div className="coeff-uncertainty">不确定度 {coeff.uncertainty}</div>
               </div>
             ))}
+          </div>
+
+          <div className="model-ref-note">
+            参考标准：{model.reference} | 数据来源：{model.dataSource}
           </div>
         </div>
       )}
