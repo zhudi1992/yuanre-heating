@@ -1,0 +1,10 @@
+{
+  "name": "yuanre-heating",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "cd client && npm install && npm run build",
+    "start": "npm run build && cd server && npm install && node server.js",
+    "dev": "concurrently \"cd server && node server.js\" \"cd client && npm run dev\""
+  }
+}

@@ -1,6 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { validateEntry } from './DataValidator';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ScatterChart, Scatter, Legend, Cell } from 'recharts';
+import { validateEntry, isGasHeated } from './DataValidator';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ScatterChart, Scatter, Legend, Cell, PieChart, Pie } from 'recharts';
+
+const SECTION_COLORS = { A: '#e74c3c', B: '#f39c12', C: '#2ecc71', D: '#3498db', E: '#9b59b6', F: '#1abc9c' };
+const PIE_COLORS = ['#e74c3c', '#f39c12', '#2ecc71', '#3498db', '#9b59b6', '#1abc9c'];
 
 function stats(arr) {
   const sorted = [...arr].sort((a, b) => a - b);
@@ -39,14 +42,22 @@ export default function AnalysisPanel({ communities }) {
   const metrics = useMemo(() => {
     const result = {};
     for (const m of METRICS) {
-      const values = communities.map(c => Number(c[m.key])).filter(v => !isNaN(v));
-      result[m.key] = stats(values);
+      const isGasMetric = m.key === 'dailyGas' || m.key === 'unitAreaGas';
+      const pool = isGasMetric ? communities.filter(c => isGasHeated(c.name)) : communities;
+      const values = pool.map(c => Number(c[m.key])).filter(v => !isNaN(v));
+      result[m.key] = values.length ? stats(values) : null;
     }
     return result;
   }, [communities]);
 
   const sorted = useMemo(() => {
+    const isGasSort = sortField === 'dailyGas' || sortField === 'unitAreaGas';
     return [...communities].sort((a, b) => {
+      if (isGasSort) {
+        const aGas = isGasHeated(a.name);
+        const bGas = isGasHeated(b.name);
+        if (aGas !== bGas) return aGas ? -1 : 1;
+      }
       const va = Number(a[sortField]) || 0;
       const vb = Number(b[sortField]) || 0;
       return sortDir === 'desc' ? vb - va : va - vb;
@@ -54,9 +65,12 @@ export default function AnalysisPanel({ communities }) {
   }, [communities, sortField, sortDir]);
 
   const histData = useMemo(() => {
-    const vals = communities.map(c => Number(c[selectedMetric])).filter(v => !isNaN(v));
+    const isGasMetric = selectedMetric === 'dailyGas' || selectedMetric === 'unitAreaGas';
+    const pool = isGasMetric ? communities.filter(c => isGasHeated(c.name)) : communities;
+    const vals = pool.map(c => Number(c[selectedMetric])).filter(v => !isNaN(v));
     if (!vals.length) return [];
     const m = metrics[selectedMetric];
+    if (!m) return [];
     const binCount = 10;
     const binWidth = (m.max - m.min) / binCount || 1;
     const bins = Array.from({ length: binCount }, (_, i) => ({
@@ -71,24 +85,24 @@ export default function AnalysisPanel({ communities }) {
   }, [communities, selectedMetric, metrics]);
 
   const scatterData = useMemo(() => {
-    return communities.map(c => ({
-      name: c.name,
-      area: c.heatingArea,
-      gas: c.dailyGas,
-      elec: c.dailyElectricity,
-      water: c.dailyWater,
-      unitGas: c.unitAreaGas,
+    const gas = communities.filter(c => isGasHeated(c.name)).map(c => ({
+      name: c.name, area: c.heatingArea, gas: c.dailyGas, group: '天然气锅炉',
     }));
+    const nonGas = communities.filter(c => !isGasHeated(c.name)).map(c => ({
+      name: c.name, area: c.heatingArea, gas: c.dailyGas, group: '大网/电锅炉',
+    }));
+    return { gas, nonGas };
   }, [communities]);
 
   const groupedAnalysis = useMemo(() => {
     return SIZE_GROUPS.map(g => {
       const members = communities.filter(c => c.heatingArea >= g.min && c.heatingArea < g.max);
-      if (!members.length) return { ...g, count: 0 };
-      const avgGas = members.reduce((s, c) => s + c.unitAreaGas, 0) / members.length;
+      if (!members.length) return { ...g, count: 0, gasCount: 0 };
+      const gasMembers = members.filter(c => isGasHeated(c.name));
+      const avgGas = gasMembers.length ? gasMembers.reduce((s, c) => s + c.unitAreaGas, 0) / gasMembers.length : 0;
       const avgElec = members.reduce((s, c) => s + c.unitAreaElectricity, 0) / members.length;
       const avgWater = members.reduce((s, c) => s + c.unitAreaWater, 0) / members.length;
-      return { ...g, count: members.length, avgGas: Number(avgGas.toFixed(4)), avgElec: Number(avgElec.toFixed(4)), avgWater: Number(avgWater.toFixed(4)) };
+      return { ...g, count: members.length, gasCount: gasMembers.length, avgGas: Number(avgGas.toFixed(4)), avgElec: Number(avgElec.toFixed(4)), avgWater: Number(avgWater.toFixed(4)) };
     });
   }, [communities]);
 
@@ -117,14 +131,16 @@ export default function AnalysisPanel({ communities }) {
         <div className="stats-grid">
           {METRICS.map(m => {
             const s = metrics[m.key];
-            if (!s) return null;
+            const isGasMetric = m.key === 'dailyGas' || m.key === 'unitAreaGas';
+            if (!s) return <div className="stat-card" key={m.key} style={{ borderTopColor: m.color, opacity: 0.5 }}><div className="stat-label">{m.label}</div><div className="stat-row"><span>暂无数据</span></div></div>;
             return (
               <div className="stat-card" key={m.key} style={{ borderTopColor: m.color }}>
-                <div className="stat-label">{m.label}</div>
+                <div className="stat-label">{m.label}{isGasMetric ? ' (天然气)' : ''}</div>
                 <div className="stat-row"><span>均值</span><span>{s.mean}</span></div>
                 <div className="stat-row"><span>中位数</span><span>{s.median}</span></div>
                 <div className="stat-row"><span>标准差</span><span>{s.std}</span></div>
                 <div className="stat-row"><span>范围</span><span>{s.min} ~ {s.max}</span></div>
+                {isGasMetric && <div className="stat-row" style={{ color: '#888', fontSize: 11 }}><span>统计小区</span><span>{s.count} 个</span></div>}
               </div>
             );
           })}
@@ -152,18 +168,20 @@ export default function AnalysisPanel({ communities }) {
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div className="chart-box">
-            <h4>供暖面积 vs 耗气量</h4>
-            <ResponsiveContainer width="100%" height={300}>
-              <ScatterChart margin={{ left: 10, right: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="area" name="供暖面积" unit="m²" tick={{ fontSize: 10 }} />
-                <YAxis dataKey="gas" name="耗气量" unit="m³" tick={{ fontSize: 10 }} />
-                <Tooltip formatter={(v, n) => [v.toLocaleString(), n === 'area' ? '面积' : '耗气量']} />
-                <Scatter data={scatterData} fill="#3498db" />
-              </ScatterChart>
-            </ResponsiveContainer>
-          </div>
+            <div className="chart-box">
+              <h4>供暖面积 vs 耗气量</h4>
+              <ResponsiveContainer width="100%" height={300}>
+                <ScatterChart margin={{ left: 10, right: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="area" name="供暖面积" unit="m²" tick={{ fontSize: 10 }} />
+                  <YAxis dataKey="gas" name="耗气量" unit="m³" tick={{ fontSize: 10 }} />
+                  <Tooltip formatter={(v, n) => [v.toLocaleString(), n === 'area' ? '面积' : '耗气量']} />
+                  <Scatter data={scatterData.gas} fill="#e74c3c" name="天然气锅炉" />
+                  <Scatter data={scatterData.nonGas} fill="#95a5a6" name="大网/电锅炉" />
+                  <Legend />
+                </ScatterChart>
+              </ResponsiveContainer>
+            </div>
         </div>
       </section>
 
@@ -176,6 +194,7 @@ export default function AnalysisPanel({ communities }) {
               <tr>
                 <th>规模分组</th>
                 <th>小区数</th>
+                <th>天然气小区</th>
                 <th>平均单位面积耗气量 (m³/m²)</th>
                 <th>平均单位面积耗电量 (kWh/m²)</th>
                 <th>平均单位面积耗水量 (t/m²)</th>
@@ -186,6 +205,7 @@ export default function AnalysisPanel({ communities }) {
                 <tr key={g.label}>
                   <td><strong>{g.label}</strong></td>
                   <td>{g.count}</td>
+                  <td>{g.gasCount}</td>
                   <td>{g.avgGas || '--'}</td>
                   <td>{g.avgElec || '--'}</td>
                   <td>{g.avgWater || '--'}</td>
@@ -194,6 +214,94 @@ export default function AnalysisPanel({ communities }) {
             </tbody>
           </table>
         </div>
+      </section>
+
+      {/* 标段分析 */}
+      <section className="analysis-section">
+        <h3>标段对比分析</h3>
+        {(() => {
+          const groups = {};
+          communities.forEach(c => {
+            const s = c.section || '其他';
+            if (!groups[s]) groups[s] = { section: s, count: 0, gasCount: 0, area: 0, gas: 0, elec: 0, water: 0, unitGasArr: [], unitElecArr: [], unitWaterArr: [] };
+            groups[s].count++;
+            groups[s].area += c.heatingArea;
+            groups[s].gas += isGasHeated(c.name) ? (c.dailyGas || 0) : 0;
+            groups[s].gasCount += isGasHeated(c.name) ? 1 : 0;
+            groups[s].elec += c.dailyElectricity || 0;
+            groups[s].water += c.dailyWater || 0;
+            if (isGasHeated(c.name) && c.unitAreaGas) groups[s].unitGasArr.push(c.unitAreaGas);
+            if (c.unitAreaElectricity) groups[s].unitElecArr.push(c.unitAreaElectricity);
+            if (c.unitAreaWater) groups[s].unitWaterArr.push(c.unitAreaWater);
+          });
+          const sectionData = Object.values(groups);
+          const avg = arr => arr.length ? Number((arr.reduce((s, v) => s + v, 0) / arr.length).toFixed(4)) : 0;
+          return (
+            <>
+              <div className="analysis-charts">
+                <div className="chart-box">
+                  <h4>各标段供暖面积对比</h4>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={sectionData.map(s => ({ section: s.section, 面积: Number((s.area / 10000).toFixed(2)) }))} margin={{ left: 10, right: 10 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="section" />
+                      <YAxis unit="万m²" />
+                      <Tooltip formatter={(v) => [v + ' 万m²', '面积']} />
+                      <Bar dataKey="面积" name="面积">
+                        {sectionData.map((s, i) => <Cell key={s.section} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="chart-box">
+                  <h4>各标段小区数分布</h4>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie data={sectionData} dataKey="count" nameKey="section" cx="50%" cy="50%" outerRadius={100} label={({ section, count }) => `${section}:${count}`}>
+                        {sectionData.map((s, i) => <Cell key={s.section} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div className="group-table-wrap" style={{ marginTop: 16 }}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>标段</th>
+                      <th>小区数</th>
+                      <th>天然气</th>
+                      <th>总面积 (万m²)</th>
+                      <th>总耗气量 (m³)</th>
+                      <th>总耗电量 (kWh)</th>
+                      <th>总耗水量 (t)</th>
+                      <th>平均单位面积耗气量</th>
+                      <th>平均单位面积耗电量</th>
+                      <th>平均单位面积耗水量</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sectionData.map(s => (
+                      <tr key={s.section}>
+                        <td><span className="section-badge">{s.section}</span></td>
+                        <td>{s.count}</td>
+                        <td>{s.gasCount}</td>
+                        <td>{(s.area / 10000).toFixed(2)}</td>
+                        <td>{s.gas.toLocaleString()}</td>
+                        <td>{s.elec.toLocaleString()}</td>
+                        <td>{s.water.toLocaleString()}</td>
+                        <td>{avg(s.unitGasArr)}</td>
+                        <td>{avg(s.unitElecArr)}</td>
+                        <td>{avg(s.unitWaterArr)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          );
+        })()}
       </section>
 
       {/* 能耗排行 */}
@@ -226,10 +334,13 @@ export default function AnalysisPanel({ communities }) {
               </tr>
             </thead>
             <tbody>
-              {sorted.map((c, i) => (
-                <tr key={c.id}>
+              {sorted.map((c, i) => {
+                const notGas = !isGasHeated(c.name);
+                const isGasSort = sortField === 'dailyGas' || sortField === 'unitAreaGas';
+                return (
+                <tr key={c.id} style={{ opacity: notGas && isGasSort ? 0.5 : 1 }}>
                   <td>{i + 1}</td>
-                  <td className="name-cell">{c.name}</td>
+                  <td className="name-cell">{c.name}{notGas ? <span className="non-gas-tag">非天然气</span> : ''}</td>
                   <td>{c.heatingArea}</td>
                   <td>{c.dailyGas}</td>
                   <td>{c.dailyElectricity}</td>
@@ -238,7 +349,8 @@ export default function AnalysisPanel({ communities }) {
                   <td>{c.unitAreaElectricity}</td>
                   <td>{c.unitAreaWater}</td>
                 </tr>
-              ))}
+              );
+              })}
             </tbody>
           </table>
         </div>

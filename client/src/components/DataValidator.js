@@ -1,3 +1,8 @@
+export function isGasHeated(name) {
+  if (!name) return true;
+  return !/(大网|（电|\(电|热泵)/.test(name);
+}
+
 const WARN_RULES = [
   {
     key: 'dailyGas', label: '日耗气量',
@@ -23,8 +28,10 @@ const WARN_RULES = [
 
 export function validateEntry(entry, allCommunities) {
   const warnings = [];
+  const gasOk = isGasHeated(entry.name);
 
   for (const rule of WARN_RULES) {
+    if (!gasOk && rule.key === 'dailyGas') continue;
     const val = Number(entry[rule.key]);
     if (isNaN(val) || val === 0) {
       warnings.push({ field: rule.key, type: 'error', msg: `${rule.label} 不能为空或零` });
@@ -47,7 +54,7 @@ export function validateEntry(entry, allCommunities) {
 
       const others = allCommunities.filter(c => c.id !== Number(entry.id));
       const stats = {
-        gas: { values: others.map(c => c.dailyGas / c.heatingArea) },
+        gas: { values: others.filter(c => isGasHeated(c.name)).map(c => c.dailyGas / c.heatingArea) },
         elec: { values: others.map(c => c.dailyElectricity / c.heatingArea) },
         water: { values: others.map(c => c.dailyWater / c.heatingArea) },
       };

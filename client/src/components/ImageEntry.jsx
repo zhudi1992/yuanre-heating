@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { createWorker } from 'tesseract.js';
 
 export default function ImageEntry({ onResult }) {
@@ -10,8 +10,13 @@ export default function ImageEntry({ onResult }) {
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef();
 
+  useEffect(() => {
+    return () => { if (preview) URL.revokeObjectURL(preview); };
+  }, [preview]);
+
   function handleFile(file) {
     if (!file) return;
+    if (preview) URL.revokeObjectURL(preview);
     setImage(file);
     setPreview(URL.createObjectURL(file));
     setResult(null);

@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "username": "admin",
+    "password": "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9",
+    "role": "admin",
+    "displayName": "管理员",
+    "createdAt": "2026-06-01T00:00:00.000Z"
+  },
+  {
+    "id": 2,
+    "username": "entry",
+    "password": "e4b0f600a0aff32b06f7d0bffb5786e879af11d5cf40d1e146e4d37c8a863521",
+    "role": "entry",
+    "displayName": "录入员",
+    "createdAt": "2026-06-01T00:00:00.000Z"
+  },
+  {
+    "id": 3,
+    "username": "viewer",
+    "password": "65375049b9e4d7cad6c9ba286fdeb9394b28135a3e84136404cfccfdcc438894",
+    "role": "viewer",
+    "displayName": "查看员",
+    "createdAt": "2026-06-01T00:00:00.000Z"
+  }
+]

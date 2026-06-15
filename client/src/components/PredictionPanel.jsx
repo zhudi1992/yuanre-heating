@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { fetchTomorrowPrediction, fetchPrediction } from '../api';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts';
 
 export default function PredictionPanel() {
   const [data, setData] = useState(null);
@@ -65,6 +65,7 @@ export default function PredictionPanel() {
   if (!data) return null;
 
   const { model, input, summary, predictions, forecastDate } = data;
+  if (!input || !summary || !predictions) return <div className="error">预测数据不完整</div>;
   const needHeating = input.forecastHDD > 0;
   const heatingAdded = summary.totalGas - predictions.reduce((s, c) => s + c.dailyGas, 0);
 
@@ -211,8 +212,6 @@ export default function PredictionPanel() {
             <Tooltip formatter={(v) => v.toLocaleString()} />
             <Legend />
             <Bar dataKey="predictedGas" fill="#e74c3c" name="预测耗气量 (m³)" />
-            <Bar dataKey="gasConfidenceHigh" fill="#f5b7b1" name="置信上限" />
-            <Bar dataKey="gasConfidenceLow" fill="#fadbd8" name="置信下限" />
             <Bar dataKey="dailyGas" fill="#95a5a6" name="当前耗气量 (m³)" />
           </BarChart>
         </ResponsiveContainer>

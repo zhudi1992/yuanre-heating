@@ -21,7 +21,7 @@ export default function WeatherWidget() {
 
   if (loading) return <div className="weather-card loading-card">加载天气...</div>;
   if (error) return <div className="weather-card error-card">天气数据暂不可用</div>;
-  if (!weather) return null;
+  if (!weather?.current || !Array.isArray(weather?.forecast)) return null;
 
   const icon = weatherIcons[weather.current.desc] || '🌡️';
 

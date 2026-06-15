@@ -1,50 +1,106 @@
 const BASE = '/api';
 
-export async function fetchCommunities() {
-  const res = await fetch(`${BASE}/communities`);
-  if (!res.ok) throw new Error('获取数据失败');
+function getHeaders(extra = {}) {
+  const headers = { 'Content-Type': 'application/json', ...extra };
+  const token = localStorage.getItem('token');
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return headers;
+}
+
+async function request(url, options = {}) {
+  const res = await fetch(url, { headers: getHeaders(options.body ? undefined : {}), ...options });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: '请求失败' }));
+    if (res.status === 401) {
+      localStorage.removeItem('token');
+      window.location.reload();
+    }
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
   return res.json();
+}
+
+/* Auth */
+export async function authLogin(username, password) {
+  return request(`${BASE}/auth/login`, {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  });
+}
+
+export async function authMe() {
+  return request(`${BASE}/auth/me`);
+}
+
+export async function changePassword(oldPassword, newPassword) {
+  return request(`${BASE}/auth/password`, {
+    method: 'PUT',
+    body: JSON.stringify({ oldPassword, newPassword }),
+  });
+}
+
+/* Users (admin) */
+export async function fetchUsers() {
+  return request(`${BASE}/users`);
+}
+
+export async function createUser(data) {
+  return request(`${BASE}/users`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateUser(id, data) {
+  return request(`${BASE}/users/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteUser(id) {
+  return request(`${BASE}/users/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+/* Communities */
+export async function fetchCommunities() {
+  return request(`${BASE}/communities`);
 }
 
 export async function fetchSummary() {
-  const res = await fetch(`${BASE}/summary`);
-  if (!res.ok) throw new Error('获取统计数据失败');
-  return res.json();
+  return request(`${BASE}/summary`);
 }
 
 export async function updateCommunity(id, data) {
-  const res = await fetch(`${BASE}/communities/${id}`, {
+  return request(`${BASE}/communities/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('更新数据失败');
-  return res.json();
 }
 
+/* Weather & Prediction */
 export async function fetchWeather() {
-  const res = await fetch(`${BASE}/weather`);
-  if (!res.ok) throw new Error('获取天气数据失败');
-  return res.json();
+  return request(`${BASE}/weather`);
 }
 
 export async function fetchPrediction(temperature) {
-  const res = await fetch(`${BASE}/predict?temperature=${temperature}`);
-  if (!res.ok) throw new Error('获取预测数据失败');
-  return res.json();
+  return request(`${BASE}/predict?temperature=${temperature}`);
 }
 
 export async function fetchTomorrowPrediction() {
-  const res = await fetch(`${BASE}/predict/tomorrow`);
-  if (!res.ok) throw new Error('获取明日预测数据失败');
-  return res.json();
+  return request(`${BASE}/predict/tomorrow`);
+}
+
+/* Report */
+export async function importFromUrl(url) {
+  return request(`${BASE}/import/url?url=${encodeURIComponent(url)}`);
 }
 
 export async function fetchReport(startDate, endDate) {
   const params = new URLSearchParams();
   if (startDate) params.set('startDate', startDate);
   if (endDate) params.set('endDate', endDate);
-  const res = await fetch(`${BASE}/report?${params}`);
-  if (!res.ok) throw new Error('获取报表数据失败');
-  return res.json();
+  return request(`${BASE}/report?${params}`);
 }
